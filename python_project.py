@@ -1,6 +1,9 @@
 from tkinter import *
 from tkinter import ttk
 import sqlite3
+import csv
+import pandas as pd
+from tkinter import filedialog
 
 # Uncomment and run this code once to create the table with the new columns
 '''conn = sqlite3.connect("Student.db")
@@ -82,6 +85,12 @@ class Student:
         self.Clear = Button(self.Button_Frame, text="Clear", width=25, font="arial 11 bold", command=self.clear)
         self.Clear.pack()
 
+        self.Export_CSV = Button(self.Button_Frame, text="Export to CSV", width=25, font="arial 11 bold", command=self.export_to_csv)
+        self.Export_CSV.pack()
+
+        self.Export_Excel = Button(self.Button_Frame, text="Export to Excel", width=25, font="arial 11 bold", command=self.export_to_excel)
+        self.Export_Excel.pack()
+
         self.Frame_2 = Frame(self.main, height=580, width=800, bd=2, relief=GROOVE, bg="yellow")
         self.Frame_2.pack(side=RIGHT)
 
@@ -129,6 +138,13 @@ class Student:
         
         self.tree.pack(fill=BOTH, expand=1)
 
+        self.search_entry = Entry(self.Frame_2, width=40)
+        self.search_entry.pack(side=TOP, padx=10, pady=10)
+
+        self.search_button = Button(self.Frame_2, text="Search", command=self.search)
+        self.search_button.pack(side=TOP, padx=10, pady=10)
+
+
     def Add(self):  
         id = self.Id_Entry.get()
         name = self.Name_Entry.get()
@@ -138,6 +154,16 @@ class Student:
         city = self.City_Entry.get()
         grade = self.Grade_Entry.get()
         attendence = self.Attendence_Entry.get() 
+
+        # Data validation
+        if not id or not name or not age or not dob or not gender or not city or not grade or not attendence:
+            print("All fields are required")
+            return
+
+        if not id.isdigit() or not age.isdigit():
+            print("ID and Age must be integers")
+            return
+
         c = sqlite3.connect("Student.db")
         curses = c.cursor()
         curses.execute("INSERT INTO Student(ID, NAME, AGE, DOB, GENDER, CITY ,GRADE, ATTENDENCE) VALUES(?,?,?,?,?,?,?,?)", (id, name, age, dob, gender, city ,grade, attendence))
@@ -147,7 +173,12 @@ class Student:
         self.tree.insert("", "end", values=(id, name, age, dob, gender, city ,grade, attendence))
 
     def Delete(self):  
-        item = self.tree.selection()[0]
+        selected_items = self.tree.selection()
+        if not selected_items:
+            print("No item selected")
+            return
+        
+        item = selected_items[0]
         selected_item = self.tree.item(item)['values'][0]
         print(selected_item)
         c = sqlite3.connect("Student.db")
@@ -171,6 +202,16 @@ class Student:
         city = self.City_Entry.get()
         grade = self.Grade_Entry.get()
         attendence = self.Attendence_Entry.get()
+
+        # Data validation
+        if not id or not name or not age or not dob or not gender or not city or not grade or not attendence:
+            print("All fields are required")
+            return
+
+        if not id.isdigit() or not age.isdigit():
+            print("ID and Age must be integers")
+            return
+
         item = self.tree.selection()[0]
         selected_item = self.tree.item(item)['values'][0]
         c = sqlite3.connect("Student.db")
@@ -193,11 +234,52 @@ class Student:
         self.Attendence_Entry.delete(0, END)
         print("Entry Cleared")
 
+    def search(self):
+        search_value = self.search_entry.get()
+        for item in self.tree.get_children():
+            self.tree.item(item, tags=())
+            values = self.tree.item(item, 'values')
+            if search_value in values:
+                self.tree.item(item, tags=('match',))
+        
+        self.tree.tag_configure('match', background='yellow')   
+    def export_to_csv(self):
+        file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        if not file_path:
+            return
+        
+        c = sqlite3.connect("Student.db")
+        cursor = c.cursor()
+        cursor.execute("SELECT * FROM Student")
+        rows = cursor.fetchall()
+        c.close()
+
+        with open(file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["ID", "NAME", "AGE", "DOB", "GENDER", "CITY", "GRADE", "ATTENDENCE"])
+            writer.writerows(rows)
+        print("Data exported to CSV")
+
+
+    def export_to_excel(self):
+        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
+        if not file_path:
+            return
+        
+        c = sqlite3.connect("Student.db")
+        cursor = c.cursor()
+        cursor.execute("SELECT * FROM Student")
+        rows = cursor.fetchall()
+        c.close()
+
+        df = pd.DataFrame(rows, columns=["ID", "NAME", "AGE", "DOB", "GENDER", "CITY", "GRADE", "ATTENDENCE"])
+        df.to_excel(file_path, index=False)
+        print("Data exported to Excel")
+
 main = Tk()
 main.title("Student Management System")
 main.resizable(False, False)
 main.geometry("1200x600")        
 
 Student(main)
-main.mainloop()
 main.mainloop()
